@@ -43,4 +43,22 @@ var (
 
 	helpStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240"))
+
+	selectedStyle = lipgloss.NewStyle().
+			Background(lipgloss.Color("236")).
+			Foreground(lipgloss.Color("15")).
+			Bold(true).
+			Padding(0, 1)
+
+	selectedCmdStyle = lipgloss.NewStyle().
+				Background(lipgloss.Color("236")).
+				Foreground(lipgloss.Color("14")).
+				Padding(0, 2)
+
+	backfillPageStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("13")).
+				Italic(true)
+
+	separatorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240"))
 )

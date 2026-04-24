@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 type Resolver struct {
@@ -47,4 +48,27 @@ func (r *Resolver) Resolve(command string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("command %q not found in tldr cache", command)
+}
+
+func (r *Resolver) ListAllCommands() ([]string, error) {
+	seen := make(map[string]bool)
+	var commands []string
+	for _, platform := range r.platformOrder {
+		dir := filepath.Join(r.cachePath, platform)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+				continue
+			}
+			name := strings.TrimSuffix(e.Name(), ".md")
+			if !seen[name] {
+				seen[name] = true
+				commands = append(commands, name)
+			}
+		}
+	}
+	return commands, nil
 }

@@ -28,6 +28,19 @@ func (s MemoryState) Next() MemoryState {
 	}
 }
 
+func (s MemoryState) Prev() MemoryState {
+	switch s {
+	case StateNotRemembered:
+		return StateNeedsReview
+	case StateNeedsReview:
+		return StateRemembered
+	case StateRemembered:
+		return StateNotRemembered
+	default:
+		return StateNotRemembered
+	}
+}
+
 type Entry struct {
 	Index       int
 	Description string

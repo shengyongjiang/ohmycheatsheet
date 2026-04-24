@@ -5,7 +5,8 @@ import bubbletea "github.com/charmbracelet/bubbletea"
 type keyMap struct {
 	Up     []string
 	Down   []string
-	Tab    []string
+	Left   []string
+	Right  []string
 	TogAll []string
 	Quit   []string
 	Help   []string
@@ -14,7 +15,8 @@ type keyMap struct {
 var keys = keyMap{
 	Up:     []string{"up", "k"},
 	Down:   []string{"down", "j"},
-	Tab:    []string{"tab"},
+	Left:   []string{"left", "h"},
+	Right:  []string{"right", "l"},
 	TogAll: []string{"a"},
 	Quit:   []string{"q", "esc", "ctrl+c"},
 	Help:   []string{"?"},
