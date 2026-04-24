@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "github.com/shengyongjiang/ocheetsheet/cmd"
 
 func main() {
-	fmt.Println("ocs - cheatsheet with memory")
+	cmd.Execute()
 }
