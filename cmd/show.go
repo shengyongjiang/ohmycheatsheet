@@ -54,7 +54,7 @@ func runShow(cmd *cobra.Command, args []string) error {
 	states := st.GetPageStates(page.Name)
 
 	if flagInteractive {
-		m := tui.New(page, states, st)
+		m := tui.New(page, states, st, res)
 		p := bubbletea.NewProgram(m, bubbletea.WithAltScreen())
 		if _, err := p.Run(); err != nil {
 			return fmt.Errorf("TUI error: %w", err)
