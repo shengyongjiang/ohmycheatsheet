@@ -3,11 +3,13 @@ package cmd
 import (
 	"fmt"
 
+	bubbletea "github.com/charmbracelet/bubbletea"
 	"github.com/shengyongjiang/ocheetsheet/internal/config"
 	"github.com/shengyongjiang/ocheetsheet/internal/parser"
 	"github.com/shengyongjiang/ocheetsheet/internal/render"
 	"github.com/shengyongjiang/ocheetsheet/internal/resolver"
 	"github.com/shengyongjiang/ocheetsheet/internal/store"
+	"github.com/shengyongjiang/ocheetsheet/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -52,7 +54,12 @@ func runShow(cmd *cobra.Command, args []string) error {
 	states := st.GetPageStates(page.Name)
 
 	if flagInteractive {
-		return fmt.Errorf("interactive mode not yet implemented")
+		m := tui.New(page, states, st)
+		p := bubbletea.NewProgram(m, bubbletea.WithAltScreen())
+		if _, err := p.Run(); err != nil {
+			return fmt.Errorf("TUI error: %w", err)
+		}
+		return nil
 	}
 
 	output := render.RenderText(page, states, flagShowAll, !cfg.ColorEnabled)
