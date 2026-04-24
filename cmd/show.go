@@ -2,13 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
-	"github.com/shengyongjiang/ocheetsheet/internal/model"
+	"github.com/shengyongjiang/ocheetsheet/internal/config"
 	"github.com/shengyongjiang/ocheetsheet/internal/parser"
 	"github.com/shengyongjiang/ocheetsheet/internal/render"
 	"github.com/shengyongjiang/ocheetsheet/internal/resolver"
+	"github.com/shengyongjiang/ocheetsheet/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -18,16 +17,23 @@ func runShow(cmd *cobra.Command, args []string) error {
 	}
 
 	command := args[0]
-	cachePath := flagTldrPath
-	if cachePath == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("cannot determine home directory: %w", err)
-		}
-		cachePath = filepath.Join(home, ".tldr", "cache", "pages")
+
+	cfgPath := flagConfigPath
+	if cfgPath == "" {
+		cfgPath = config.DefaultConfigPath()
+	}
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+	if flagTldrPath != "" {
+		cfg.TldrCachePath = flagTldrPath
+	}
+	if flagNoColor {
+		cfg.ColorEnabled = false
 	}
 
-	res := resolver.NewDefault(cachePath)
+	res := resolver.NewDefault(cfg.TldrCachePath)
 	path, err := res.Resolve(command)
 	if err != nil {
 		return fmt.Errorf("command %q not found. Make sure tldr cache is populated (run: tldr --update)", command)
@@ -38,9 +44,18 @@ func runShow(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to parse %s: %w", path, err)
 	}
 
-	states := map[int]model.EntryState{}
+	st, err := store.NewJSONStore(cfg.StateFile)
+	if err != nil {
+		return fmt.Errorf("load state: %w", err)
+	}
 
-	output := render.RenderText(page, states, flagShowAll, flagNoColor)
+	states := st.GetPageStates(page.Name)
+
+	if flagInteractive {
+		return fmt.Errorf("interactive mode not yet implemented")
+	}
+
+	output := render.RenderText(page, states, flagShowAll, !cfg.ColorEnabled)
 	fmt.Print(output)
 	return nil
 }
