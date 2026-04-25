@@ -8,6 +8,12 @@
 go install github.com/shengyongjiang/ohmycheatsheet/cmd/omcs@latest
 ```
 
+确保 `$GOPATH/bin` 在你的 `PATH` 中：
+
+```bash
+export PATH="$HOME/go/bin:$PATH"  # 添加到 ~/.bashrc 或 ~/.zshrc
+```
+
 或从源码构建：
 
 ```bash

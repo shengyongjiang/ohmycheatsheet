@@ -8,6 +8,12 @@ A terminal cheatsheet tool that tracks which commands you've memorized. Powered 
 go install github.com/shengyongjiang/ohmycheatsheet/cmd/omcs@latest
 ```
 
+Make sure `$GOPATH/bin` is in your `PATH`:
+
+```bash
+export PATH="$HOME/go/bin:$PATH"  # add to ~/.bashrc or ~/.zshrc
+```
+
 Or build from source:
 
 ```bash
