@@ -101,3 +101,7 @@ internal/
   store/          JSON-based state persistence
   tui/            Interactive TUI (Bubble Tea)
 ```
+
+## Language
+
+[简体中文](README_CN.md)
