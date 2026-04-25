@@ -1,6 +1,6 @@
 package main
 
-import "github.com/shengyongjiang/ocheetsheet/cmd"
+import "github.com/shengyongjiang/ohmycheatsheet/cmd"
 
 func main() {
 	cmd.Execute()

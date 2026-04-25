@@ -1,4 +1,4 @@
-module github.com/shengyongjiang/ocheetsheet
+module github.com/shengyongjiang/ohmycheatsheet
 
 go 1.26.2
 

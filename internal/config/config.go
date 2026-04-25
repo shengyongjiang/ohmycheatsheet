@@ -7,9 +7,9 @@ import (
 )
 
 type Config struct {
-	TldrCachePath string `json:"tldr_cache_path"`
-	StateFile     string `json:"state_file"`
-	ColorEnabled  bool   `json:"color_enabled"`
+	CacheDir     string `json:"cache_dir"`
+	StateFile    string `json:"state_file"`
+	ColorEnabled bool   `json:"color_enabled"`
 }
 
 func Load(path string) (*Config, error) {
@@ -32,14 +32,18 @@ func Load(path string) (*Config, error) {
 
 func defaults() *Config {
 	home, _ := os.UserHomeDir()
+	cacheDir, _ := os.UserCacheDir()
+	if cacheDir == "" {
+		cacheDir = filepath.Join(home, ".cache")
+	}
 	configDir, _ := os.UserConfigDir()
 	if configDir == "" {
 		configDir = filepath.Join(home, ".config")
 	}
 	return &Config{
-		TldrCachePath: filepath.Join(home, ".tldr", "cache", "pages"),
-		StateFile:     filepath.Join(configDir, "ocs", "state.json"),
-		ColorEnabled:  true,
+		CacheDir:     filepath.Join(cacheDir, "omcs", "cheatsh"),
+		StateFile:    filepath.Join(configDir, "omcs", "state.json"),
+		ColorEnabled: true,
 	}
 }
 
@@ -49,5 +53,5 @@ func DefaultConfigPath() string {
 		home, _ := os.UserHomeDir()
 		configDir = filepath.Join(home, ".config")
 	}
-	return filepath.Join(configDir, "ocs", "config.json")
+	return filepath.Join(configDir, "omcs", "config.json")
 }
