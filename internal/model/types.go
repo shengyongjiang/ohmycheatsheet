@@ -52,7 +52,6 @@ type Page struct {
 	Name        string
 	Platform    string
 	Description string
-	SeeAlso     []string
 	URL         string
 	Entries     []Entry
 }
@@ -65,13 +64,6 @@ type EntryState struct {
 	EaseFactor   float64     `json:"ease_factor,omitempty"`
 	IntervalDays int         `json:"interval_days,omitempty"`
 	NextReview   *time.Time  `json:"next_review,omitempty"`
-}
-
-type DueEntry struct {
-	PageKey string
-	Index   int
-	Entry   Entry
-	State   EntryState
 }
 
 func ComputeFingerprint(description, command string) string {
