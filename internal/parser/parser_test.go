@@ -1,103 +1,105 @@
 package parser
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
 
-const tmuxMd = `# tmux
+const cheatshGit = `#[cheat.sheets:git]
+# git
+# Set your identity.
+git config --global user.name "John Doe"
+git config --global user.email johndoe@example.com
 
-> Terminal multiplexer.
-> It allows multiple sessions with windows, panes, and more.
-> See also: ` + "`zellij`" + `, ` + "`screen`" + `.
-> More information: <https://github.com/tmux/tmux>.
+# Stage all changes for commit.
+git add [--all|-A]
 
-- Start a new session:
+# Stash changes locally. This will keep the changes in a separate changelist, -
+# called 'stash', and the working directory is cleaned. You can apply changes
+# from the stash at any time.
+git stash
 
-` + "`tmux`" + `
+#[cheat:git]
+# To start a new branch:
+git checkout -b <branch_name>
 
-- Start a new named [s]ession:
+#[tldr:git]
+# git
+# Distributed version control system.
 
-` + "`tmux {{[new|new-session]}} -s {{name}}`" + `
-
-- Kill a session by [t]arget name:
-
-` + "`tmux kill-session -t {{name}}`" + `
+# Show help:
+git --help
 `
 
-func TestParseString(t *testing.T) {
-	page, err := ParseString(tmuxMd, "tmux", "common")
+func TestParseCheatsh_Basic(t *testing.T) {
+	page, err := ParseCheatsh(cheatshGit, "git")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if page.Name != "tmux" {
-		t.Errorf("name = %q, want %q", page.Name, "tmux")
+	if page.Name != "git" {
+		t.Errorf("name = %q, want %q", page.Name, "git")
 	}
-	if page.Platform != "common" {
-		t.Errorf("platform = %q, want %q", page.Platform, "common")
+
+	if page.Description != "git Set your identity." {
+		t.Errorf("description = %q, want %q", page.Description, "git Set your identity.")
 	}
-	if page.Description != "Terminal multiplexer. It allows multiple sessions with windows, panes, and more." {
-		t.Errorf("description = %q", page.Description)
-	}
-	if page.URL != "https://github.com/tmux/tmux" {
-		t.Errorf("url = %q", page.URL)
-	}
-	if len(page.SeeAlso) != 2 || page.SeeAlso[0] != "zellij" || page.SeeAlso[1] != "screen" {
-		t.Errorf("see_also = %v", page.SeeAlso)
-	}
-	if len(page.Entries) != 3 {
-		t.Fatalf("entries count = %d, want 3", len(page.Entries))
+
+	if len(page.Entries) < 4 {
+		t.Fatalf("entries count = %d, want at least 4", len(page.Entries))
 	}
 
 	e0 := page.Entries[0]
-	if e0.Index != 0 {
-		t.Errorf("entry[0].Index = %d", e0.Index)
-	}
-	if e0.Description != "Start a new session" {
+	if e0.Description != "Stage all changes for commit." {
 		t.Errorf("entry[0].Description = %q", e0.Description)
 	}
-	if e0.Command != "tmux" {
+	if e0.Command != "git add [--all|-A]" {
 		t.Errorf("entry[0].Command = %q", e0.Command)
-	}
-	if e0.Fingerprint == "" {
-		t.Error("entry[0].Fingerprint is empty")
 	}
 
 	e1 := page.Entries[1]
-	if e1.Description != "Start a new named [s]ession" {
+	if e1.Description != "Stash changes locally. This will keep the changes in a separate changelist, - called 'stash', and the working directory is cleaned. You can apply changes from the stash at any time." {
 		t.Errorf("entry[1].Description = %q", e1.Description)
 	}
-	if e1.Command != "tmux {{[new|new-session]}} -s {{name}}" {
+	if e1.Command != "git stash" {
 		t.Errorf("entry[1].Command = %q", e1.Command)
 	}
 }
 
-func TestParseFile(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "common", "tmux.md")
-	os.MkdirAll(filepath.Dir(path), 0o755)
-	os.WriteFile(path, []byte(tmuxMd), 0o644)
-
-	page, err := ParseFile(path)
+func TestParseCheatsh_MultipleSourceSections(t *testing.T) {
+	page, err := ParseCheatsh(cheatshGit, "git")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if page.Name != "tmux" {
-		t.Errorf("name = %q, want %q", page.Name, "tmux")
+
+	found := false
+	for _, e := range page.Entries {
+		if e.Description == "To start a new branch" {
+			found = true
+			if e.Command != "git checkout -b <branch_name>" {
+				t.Errorf("command = %q", e.Command)
+			}
+		}
 	}
-	if page.Platform != "common" {
-		t.Errorf("platform = %q, want %q", page.Platform, "common")
+	if !found {
+		t.Error("entry from cheat section not found")
+	}
+
+	found = false
+	for _, e := range page.Entries {
+		if e.Description == "Show help" {
+			found = true
+			if e.Command != "git --help" {
+				t.Errorf("command = %q", e.Command)
+			}
+		}
+	}
+	if !found {
+		t.Error("entry from tldr section not found")
 	}
 }
 
-func TestParseEmptyPage(t *testing.T) {
-	input := `# empty
-
-> An empty command.
-`
-	page, err := ParseString(input, "empty", "common")
+func TestParseCheatsh_EmptyContent(t *testing.T) {
+	page, err := ParseCheatsh("", "empty")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -106,30 +108,43 @@ func TestParseEmptyPage(t *testing.T) {
 	}
 }
 
-func TestParseDescription_NoSeeAlso(t *testing.T) {
-	input := `# curl
-
-> Transfer data from or to a server.
-> More information: <https://curl.se/docs/manpage.html>.
-
-- Download a URL:
-
-` + "`curl {{https://example.com}}`" + `
-`
-	page, err := ParseString(input, "curl", "common")
+func TestParseCheatsh_Fingerprint(t *testing.T) {
+	page, err := ParseCheatsh(cheatshGit, "git")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if page.Description != "Transfer data from or to a server." {
-		t.Errorf("description = %q", page.Description)
+	for i, e := range page.Entries {
+		if e.Fingerprint == "" {
+			t.Errorf("entry[%d].Fingerprint is empty", i)
+		}
 	}
-	if len(page.SeeAlso) != 0 {
-		t.Errorf("see_also = %v, want empty", page.SeeAlso)
+}
+
+func TestParseCheatsh_IndexSequential(t *testing.T) {
+	page, err := ParseCheatsh(cheatshGit, "git")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if page.URL != "https://curl.se/docs/manpage.html" {
-		t.Errorf("url = %q", page.URL)
+	for i, e := range page.Entries {
+		if e.Index != i {
+			t.Errorf("entry[%d].Index = %d, want %d", i, e.Index, i)
+		}
+	}
+}
+
+func TestParseCheatsh_NoDescription(t *testing.T) {
+	content := `#[cheat.sheets:curl]
+# Download a URL.
+curl https://example.com
+`
+	page, err := ParseCheatsh(content, "curl")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(page.Entries) != 1 {
 		t.Fatalf("entries count = %d, want 1", len(page.Entries))
+	}
+	if page.Entries[0].Description != "Download a URL." {
+		t.Errorf("description = %q", page.Entries[0].Description)
 	}
 }
