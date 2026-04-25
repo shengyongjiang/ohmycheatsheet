@@ -2,73 +2,48 @@ package resolver
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
+
+	"github.com/shengyongjiang/ohmycheatsheet/internal/model"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/parser"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/source"
 )
 
 type Resolver struct {
-	cachePath     string
-	platformOrder []string
+	source *source.CheatshSource
 }
 
-func New(cachePath string, platformOrder []string) *Resolver {
-	return &Resolver{
-		cachePath:     cachePath,
-		platformOrder: platformOrder,
+func New(src *source.CheatshSource) *Resolver {
+	return &Resolver{source: src}
+}
+
+func (r *Resolver) Resolve(command string) (*model.Page, error) {
+	content, err := r.source.Fetch(command)
+	if err != nil {
+		return nil, fmt.Errorf("fetch %q: %w", command, err)
 	}
-}
-
-func NewDefault(cachePath string) *Resolver {
-	return New(cachePath, defaultPlatformOrder())
-}
-
-func defaultPlatformOrder() []string {
-	switch runtime.GOOS {
-	case "darwin":
-		return []string{"osx", "common"}
-	case "linux":
-		return []string{"linux", "common"}
-	case "windows":
-		return []string{"windows", "common"}
-	case "freebsd":
-		return []string{"freebsd", "common"}
-	default:
-		return []string{"common"}
+	page, err := parser.ParseCheatsh(content, command)
+	if err != nil {
+		return nil, fmt.Errorf("parse %q: %w", command, err)
 	}
+	if len(page.Entries) == 0 {
+		return nil, fmt.Errorf("command %q not found on cheat.sh", command)
+	}
+	return page, nil
 }
 
-func (r *Resolver) Resolve(command string) (string, error) {
-	filename := command + ".md"
-	for _, platform := range r.platformOrder {
-		path := filepath.Join(r.cachePath, platform, filename)
-		if _, err := os.Stat(path); err == nil {
-			return path, nil
+func (r *Resolver) ListRelatedCommands(prefix string) ([]string, error) {
+	cached := r.source.ListCachedCommands()
+	var related []string
+	dashPrefix := prefix + "-"
+	for _, cmd := range cached {
+		if cmd != prefix && strings.HasPrefix(cmd, dashPrefix) {
+			related = append(related, cmd)
 		}
 	}
-	return "", fmt.Errorf("command %q not found in tldr cache", command)
+	return related, nil
 }
 
 func (r *Resolver) ListAllCommands() ([]string, error) {
-	seen := make(map[string]bool)
-	var commands []string
-	for _, platform := range r.platformOrder {
-		dir := filepath.Join(r.cachePath, platform)
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			continue
-		}
-		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
-				continue
-			}
-			name := strings.TrimSuffix(e.Name(), ".md")
-			if !seen[name] {
-				seen[name] = true
-				commands = append(commands, name)
-			}
-		}
-	}
-	return commands, nil
+	return r.source.ListCachedCommands(), nil
 }

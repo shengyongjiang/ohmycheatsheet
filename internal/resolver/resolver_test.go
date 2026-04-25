@@ -4,80 +4,107 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/shengyongjiang/ohmycheatsheet/internal/source"
 )
 
-func setupTestCache(t *testing.T) string {
+func setupTestCache(t *testing.T) (string, *source.CheatshSource) {
 	t.Helper()
 	dir := t.TempDir()
-	for _, sub := range []string{"common", "osx", "linux"} {
-		os.MkdirAll(filepath.Join(dir, sub), 0o755)
-	}
-	os.WriteFile(filepath.Join(dir, "common", "tmux.md"), []byte("# tmux\n"), 0o644)
-	os.WriteFile(filepath.Join(dir, "common", "curl.md"), []byte("# curl\n"), 0o644)
-	os.WriteFile(filepath.Join(dir, "osx", "brew.md"), []byte("# brew\n"), 0o644)
-	os.WriteFile(filepath.Join(dir, "osx", "tmux.md"), []byte("# tmux\n"), 0o644)
-	os.WriteFile(filepath.Join(dir, "linux", "apt.md"), []byte("# apt\n"), 0o644)
-	return dir
+
+	content := `#[cheat.sheets:tmux]
+# Start a new session.
+tmux
+
+# Start a new named session.
+tmux new-session -s name
+
+# Kill a session by name.
+tmux kill-session -t name
+`
+	os.WriteFile(filepath.Join(dir, "tmux.txt"), []byte(content), 0o644)
+
+	gitContent := `#[cheat.sheets:git]
+# Show help.
+git --help
+`
+	os.WriteFile(filepath.Join(dir, "git.txt"), []byte(gitContent), 0o644)
+
+	gitLogContent := `#[cheat.sheets:git-log]
+# Show commit log.
+git log
+`
+	os.WriteFile(filepath.Join(dir, "git-log.txt"), []byte(gitLogContent), 0o644)
+
+	src := source.NewCheatshSource(dir)
+	return dir, src
 }
 
-func TestResolve_CommonCommand(t *testing.T) {
-	dir := setupTestCache(t)
-	r := New(dir, []string{"osx", "common"})
+func TestResolve_CachedCommand(t *testing.T) {
+	_, src := setupTestCache(t)
+	r := New(src)
 
-	path, err := r.Resolve("curl")
+	page, err := r.Resolve("tmux")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	expected := filepath.Join(dir, "common", "curl.md")
-	if path != expected {
-		t.Errorf("path = %q, want %q", path, expected)
+	if page.Name != "tmux" {
+		t.Errorf("name = %q, want %q", page.Name, "tmux")
+	}
+	if len(page.Entries) != 3 {
+		t.Errorf("entries count = %d, want 3", len(page.Entries))
 	}
 }
 
-func TestResolve_PlatformPriority(t *testing.T) {
-	dir := setupTestCache(t)
-	r := New(dir, []string{"osx", "common"})
+func TestResolve_ReturnsPage(t *testing.T) {
+	_, src := setupTestCache(t)
+	r := New(src)
 
-	path, err := r.Resolve("tmux")
+	page, err := r.Resolve("git")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	expected := filepath.Join(dir, "osx", "tmux.md")
-	if path != expected {
-		t.Errorf("path = %q, want %q (should prefer osx)", path, expected)
+	if page.Name != "git" {
+		t.Errorf("name = %q, want %q", page.Name, "git")
+	}
+	if len(page.Entries) < 1 {
+		t.Errorf("entries count = %d, want at least 1", len(page.Entries))
 	}
 }
 
-func TestResolve_PlatformOnly(t *testing.T) {
-	dir := setupTestCache(t)
-	r := New(dir, []string{"osx", "common"})
+func TestListRelatedCommands(t *testing.T) {
+	_, src := setupTestCache(t)
+	r := New(src)
 
-	path, err := r.Resolve("brew")
+	related, err := r.ListRelatedCommands("git")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	expected := filepath.Join(dir, "osx", "brew.md")
-	if path != expected {
-		t.Errorf("path = %q, want %q", path, expected)
+	if len(related) != 1 || related[0] != "git-log" {
+		t.Errorf("related = %v, want [git-log]", related)
 	}
 }
 
-func TestResolve_NotFound(t *testing.T) {
-	dir := setupTestCache(t)
-	r := New(dir, []string{"osx", "common"})
+func TestListAllCommands(t *testing.T) {
+	_, src := setupTestCache(t)
+	r := New(src)
 
-	_, err := r.Resolve("nonexistent")
+	commands, err := r.ListAllCommands()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(commands) != 3 {
+		t.Errorf("commands count = %d, want 3", len(commands))
+	}
+}
+
+func TestResolve_NotCached_WillFail(t *testing.T) {
+	dir := t.TempDir()
+	src := source.NewCheatshSource(dir)
+	r := New(src)
+
+	_, err := r.Resolve("nonexistent-command-xyz-12345")
 	if err == nil {
 		t.Fatal("expected error for nonexistent command")
-	}
-}
-
-func TestResolve_CrossPlatformNotVisible(t *testing.T) {
-	dir := setupTestCache(t)
-	r := New(dir, []string{"osx", "common"})
-
-	_, err := r.Resolve("apt")
-	if err == nil {
-		t.Fatal("expected error: apt is linux-only, shouldn't resolve on osx")
 	}
 }
