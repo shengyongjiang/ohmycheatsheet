@@ -68,9 +68,9 @@ func RenderText(page *model.Page, states map[int]model.EntryState, showAll bool,
 
 	remaining := len(page.Entries) - hiddenCount - displayed
 	if !showAll && remaining > 0 {
-		more := fmt.Sprintf("  (%d more entries available. Use -i for interactive mode.)", remaining)
+		more := fmt.Sprintf("  (%d more entries available. Use omcs %s -i for interactive mode.)", remaining, page.Name)
 		if !noColor {
-			more = fmt.Sprintf("  %s%s(%d more entries available. Use -i for interactive mode.)%s", dim, italic, remaining, reset)
+			more = fmt.Sprintf("  %s%s(%d more entries available. Use omcs %s -i for interactive mode.)%s", dim, italic, remaining, page.Name, reset)
 		}
 		b.WriteString(more + "\n")
 	}
