@@ -2,16 +2,15 @@ package tui
 
 import (
 	"fmt"
-	"math/rand/v2"
 	"strings"
 	"time"
 
 	bubbletea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/shengyongjiang/ocheetsheet/internal/model"
-	"github.com/shengyongjiang/ocheetsheet/internal/parser"
-	"github.com/shengyongjiang/ocheetsheet/internal/resolver"
-	"github.com/shengyongjiang/ocheetsheet/internal/store"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/model"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/resolver"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/shuffle"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/store"
 )
 
 type displayEntry struct {
@@ -30,7 +29,6 @@ type Model struct {
 	scrollOffset  int
 	showAll       bool
 	originalCount int
-	allCommands   []string
 	parsedPages   map[string]*model.Page
 	width         int
 	height        int
@@ -38,16 +36,17 @@ type Model struct {
 	dirty         bool
 }
 
-func New(page *model.Page, states map[int]model.EntryState, st store.StateStore, res *resolver.Resolver) Model {
+func New(page *model.Page, states map[int]model.EntryState, st store.StateStore, res *resolver.Resolver, seed int64) Model {
 	m := Model{
 		page:          page,
 		store:         st,
 		resolver:      res,
-		originalCount: len(page.Entries),
+		originalCount: min(10, len(page.Entries)),
 		parsedPages:   make(map[string]*model.Page),
 	}
 
-	for _, e := range page.Entries {
+	shuffled := shuffle.ShuffleEntries(page.Entries, seed)
+	for _, e := range shuffled {
 		m.entries = append(m.entries, displayEntry{
 			pageName:   page.Name,
 			entry:      e,
@@ -56,13 +55,6 @@ func New(page *model.Page, states map[int]model.EntryState, st store.StateStore,
 	}
 
 	m.parsedPages[page.Name] = page
-
-	if res != nil {
-		cmds, err := res.ListAllCommands()
-		if err == nil {
-			m.allCommands = cmds
-		}
-	}
 
 	m.rebuildVisible()
 	return m
@@ -85,7 +77,6 @@ func (m *Model) cycleStateForward() {
 	es.Fingerprint = de.entry.Fingerprint
 	m.store.SetEntryState(de.pageName, de.entry.Index, es)
 	m.dirty = true
-	m.rebuildVisible()
 }
 
 func (m *Model) cycleStateBackward() {
@@ -100,6 +91,38 @@ func (m *Model) cycleStateBackward() {
 	es.Fingerprint = de.entry.Fingerprint
 	m.store.SetEntryState(de.pageName, de.entry.Index, es)
 	m.dirty = true
+}
+
+func (m *Model) setState(target model.MemoryState) {
+	if len(m.visible) == 0 {
+		return
+	}
+	de := m.entries[m.visible[m.cursor]]
+	es := m.getState(de)
+	es.State = target
+	es.LastReviewed = time.Now()
+	es.ReviewCount++
+	es.Fingerprint = de.entry.Fingerprint
+	m.store.SetEntryState(de.pageName, de.entry.Index, es)
+	m.dirty = true
+}
+
+func (m *Model) resetAll() {
+	for _, idx := range m.visible {
+		de := m.entries[idx]
+		m.store.SetEntryState(de.pageName, de.entry.Index, model.EntryState{})
+	}
+	m.entries = m.entries[:0]
+	for _, e := range m.page.Entries {
+		m.entries = append(m.entries, displayEntry{
+			pageName:   m.page.Name,
+			entry:      e,
+			isBackfill: false,
+		})
+	}
+	m.dirty = true
+	m.cursor = 0
+	m.scrollOffset = 0
 	m.rebuildVisible()
 }
 
@@ -126,11 +149,11 @@ func (m *Model) backfill() {
 		return
 	}
 
-	for _, seeAlso := range m.page.SeeAlso {
+	for _, cmd := range m.collectRelatedCommands() {
 		if needed <= 0 {
 			break
 		}
-		page := m.loadPage(seeAlso)
+		page := m.loadPage(cmd)
 		if page == nil {
 			continue
 		}
@@ -151,45 +174,29 @@ func (m *Model) backfill() {
 			needed--
 		}
 	}
+}
 
-	if needed > 0 {
-		used := map[string]bool{m.page.Name: true}
-		for _, sa := range m.page.SeeAlso {
-			used[sa] = true
-		}
-		for _, de := range m.entries {
-			used[de.pageName] = true
-		}
+func (m *Model) collectRelatedCommands() []string {
+	if m.resolver == nil {
+		return nil
+	}
+	seen := map[string]bool{m.page.Name: true}
+	var result []string
 
-		perm := rand.Perm(len(m.allCommands))
-		for _, i := range perm {
-			if needed <= 0 {
-				break
-			}
-			cmd := m.allCommands[i]
-			if used[cmd] {
-				continue
-			}
-			used[cmd] = true
-			page := m.loadPage(cmd)
-			if page == nil {
-				continue
-			}
-			for _, entry := range page.Entries {
-				if needed <= 0 {
-					break
-				}
-				de := displayEntry{pageName: page.Name, entry: entry, isBackfill: true}
-				es := m.getState(de)
-				if es.State == model.StateRemembered {
-					continue
-				}
-				m.entries = append(m.entries, de)
-				m.visible = append(m.visible, len(m.entries)-1)
-				needed--
-			}
+	add := func(name string) {
+		if !seen[name] {
+			seen[name] = true
+			result = append(result, name)
 		}
 	}
+
+	if prefixed, err := m.resolver.ListRelatedCommands(m.page.Name); err == nil {
+		for _, p := range prefixed {
+			add(p)
+		}
+	}
+
+	return result
 }
 
 func (m *Model) loadPage(command string) *model.Page {
@@ -199,11 +206,7 @@ func (m *Model) loadPage(command string) *model.Page {
 	if m.resolver == nil {
 		return nil
 	}
-	path, err := m.resolver.Resolve(command)
-	if err != nil {
-		return nil
-	}
-	page, err := parser.ParseFile(path)
+	page, err := m.resolver.Resolve(command)
 	if err != nil {
 		return nil
 	}
@@ -238,7 +241,11 @@ func (m *Model) viewportHeight() int {
 	if available < 1 {
 		return 1
 	}
-	return available / 2
+	vh := available / 2
+	if vh > 15 {
+		vh = 15
+	}
+	return vh
 }
 
 func (m Model) Init() bubbletea.Cmd {
@@ -283,9 +290,18 @@ func (m Model) Update(msg bubbletea.Msg) (bubbletea.Model, bubbletea.Cmd) {
 		case matchKey(msg, keys.Left):
 			m.cycleStateBackward()
 
+		case matchKey(msg, keys.MarkRemember):
+			m.setState(model.StateRemembered)
+
+		case matchKey(msg, keys.MarkReview):
+			m.setState(model.StateNeedsReview)
+
 		case matchKey(msg, keys.TogAll):
 			m.showAll = !m.showAll
 			m.rebuildVisible()
+
+		case matchKey(msg, keys.Reset):
+			m.resetAll()
 
 		case matchKey(msg, keys.Help):
 			m.helpOpen = true
@@ -331,9 +347,9 @@ func (m Model) View() string {
 			var stateIndicator string
 			switch es.State {
 			case model.StateNeedsReview:
-				stateIndicator = reviewTagStyle.Render("*")
+				stateIndicator = reviewTagStyle.Render("+")
 			case model.StateRemembered:
-				stateIndicator = dimStyle.Render("v")
+				stateIndicator = dimStyle.Render("x")
 			default:
 				stateIndicator = dimStyle.Render("o")
 			}
@@ -343,12 +359,25 @@ func (m Model) View() string {
 				desc = backfillPageStyle.Render("["+de.pageName+"]") + " " + desc
 			}
 
+			var dStyle, cStyle lipgloss.Style
+			switch es.State {
+			case model.StateRemembered:
+				dStyle = rememberedDescStyle
+				cStyle = rememberedCmdStyle
+			case model.StateNeedsReview:
+				dStyle = needsReviewDescStyle
+				cStyle = needsReviewCmdStyle
+			default:
+				dStyle = descStyle
+				cStyle = cmdStyle
+			}
+
 			if isCursor {
 				b.WriteString(fmt.Sprintf("  %s  %s\n", stateIndicator, selectedStyle.Render(desc)))
 				b.WriteString(fmt.Sprintf("       %s\n", selectedCmdStyle.Render(de.entry.Command)))
 			} else {
-				b.WriteString(fmt.Sprintf("  %s  %s\n", stateIndicator, descStyle.Render(desc)))
-				b.WriteString(fmt.Sprintf("       %s\n", cmdStyle.Render(de.entry.Command)))
+				b.WriteString(fmt.Sprintf("  %s  %s\n", stateIndicator, dStyle.Render(desc)))
+				b.WriteString(fmt.Sprintf("       %s\n", cStyle.Render(de.entry.Command)))
 			}
 		}
 	}
@@ -371,7 +400,7 @@ func (m Model) View() string {
 		allToggle = "a:filter"
 	}
 	status := statusBarStyle.Width(m.width).Render(
-		helpStyle.Render(fmt.Sprintf("←/→:cycle state  j/k:navigate  %s  q:quit  ?:help", allToggle)),
+		helpStyle.Render(fmt.Sprintf("←/→:cycle  x:remember  Enter:review  j/k:nav  %s  r:reset  q:quit  ?:help", allToggle)),
 	)
 	b.WriteString(status)
 
@@ -384,22 +413,25 @@ func (m Model) viewHelp() string {
 
   ← Left     Cycle state backward (not remembered -> needs review -> remembered)
   → Right    Cycle state forward (not remembered -> remembered -> needs review)
+  x / X      Mark as remembered
+  Enter      Mark as needs review
   j / Down   Next entry
   k / Up     Previous entry
   a          Toggle show all / filter remembered
+  r          Reset all states and refresh list
   q / Esc    Quit (auto-saves)
   ?          Toggle this help
 
   Memory States:
 
   o not remembered   Default, always shown
-  v remembered       Hidden by default
-  * needs review     Highlighted, shown with priority
+  x remembered       Hidden by default
+  + needs review     Highlighted, shown with priority
 
   Entries from related or random pages are shown as backfill
   when you've memorized entries from the current page.
 
   Press any key to close help.
 `
-	return headerStyle.Render(titleStyle.Render("ocs help")) + help
+	return headerStyle.Render(titleStyle.Render("omcs help")) + help
 }

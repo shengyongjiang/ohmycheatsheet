@@ -28,18 +28,12 @@ var (
 			Bold(true).
 			Foreground(lipgloss.Color("11"))
 
-	rememberedTagStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240"))
-
 	statusBarStyle = lipgloss.NewStyle().
 			BorderStyle(lipgloss.NormalBorder()).
 			BorderTop(true).
 			BorderForeground(lipgloss.Color("240")).
 			Foreground(lipgloss.Color("240")).
 			Padding(0, 1)
-
-	counterStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("14"))
 
 	helpStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240"))
@@ -61,4 +55,18 @@ var (
 
 	separatorStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240"))
+
+	rememberedDescStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("240"))
+
+	rememberedCmdStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("240")).
+				Padding(0, 2)
+
+	needsReviewDescStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("9"))
+
+	needsReviewCmdStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("9")).
+				Padding(0, 2)
 )
