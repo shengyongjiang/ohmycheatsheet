@@ -9,15 +9,14 @@ import (
 
 var (
 	flagConfigPath  string
-	flagTldrPath    string
 	flagNoColor     bool
-	flagVerbose     bool
 	flagShowAll     bool
 	flagInteractive bool
+	flagRandom      bool
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "ocs",
+	Use:   "omcs",
 	Short: "Cheatsheet with memory",
 	Long:  "A cheatsheet tool that tracks which commands you've memorized.",
 	Args:  cobra.ArbitraryArgs,
@@ -32,10 +31,9 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config", "", "config file path (default: ~/.config/ocs/config.json)")
-	rootCmd.PersistentFlags().StringVar(&flagTldrPath, "tldr-path", "", "override tldr cache path")
+	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config", "", "config file path (default: ~/.config/omcs/config.json)")
 	rootCmd.PersistentFlags().BoolVar(&flagNoColor, "no-color", false, "disable colored output")
-	rootCmd.PersistentFlags().BoolVar(&flagVerbose, "verbose", false, "debug output")
 	rootCmd.Flags().BoolVar(&flagShowAll, "all", false, "show all entries including remembered")
 	rootCmd.Flags().BoolVarP(&flagInteractive, "interactive", "i", false, "interactive TUI mode")
+	rootCmd.Flags().BoolVar(&flagRandom, "random", false, "force a new random shuffle")
 }

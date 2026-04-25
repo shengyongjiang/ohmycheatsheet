@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/shengyongjiang/ocheetsheet/internal/config"
-	"github.com/shengyongjiang/ocheetsheet/internal/store"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/config"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +36,7 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	pages := st.ListTrackedPages()
 	if len(pages) == 0 {
-		fmt.Println("No tracked commands yet. Use `ocs <command> -i` to start learning.")
+		fmt.Println("No tracked commands yet. Use `omcs <command> -i` to start learning.")
 		return nil
 	}
 

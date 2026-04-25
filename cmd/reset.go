@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/shengyongjiang/ocheetsheet/internal/config"
-	"github.com/shengyongjiang/ocheetsheet/internal/store"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/config"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/store"
 	"github.com/spf13/cobra"
 )
 

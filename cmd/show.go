@@ -4,12 +4,13 @@ import (
 	"fmt"
 
 	bubbletea "github.com/charmbracelet/bubbletea"
-	"github.com/shengyongjiang/ocheetsheet/internal/config"
-	"github.com/shengyongjiang/ocheetsheet/internal/parser"
-	"github.com/shengyongjiang/ocheetsheet/internal/render"
-	"github.com/shengyongjiang/ocheetsheet/internal/resolver"
-	"github.com/shengyongjiang/ocheetsheet/internal/store"
-	"github.com/shengyongjiang/ocheetsheet/internal/tui"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/config"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/render"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/resolver"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/shuffle"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/source"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/store"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -28,22 +29,15 @@ func runShow(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	if flagTldrPath != "" {
-		cfg.TldrCachePath = flagTldrPath
-	}
 	if flagNoColor {
 		cfg.ColorEnabled = false
 	}
 
-	res := resolver.NewDefault(cfg.TldrCachePath)
-	path, err := res.Resolve(command)
+	src := source.NewCheatshSource(cfg.CacheDir)
+	res := resolver.New(src)
+	page, err := res.Resolve(command)
 	if err != nil {
-		return fmt.Errorf("command %q not found. Make sure tldr cache is populated (run: tldr --update)", command)
-	}
-
-	page, err := parser.ParseFile(path)
-	if err != nil {
-		return fmt.Errorf("failed to parse %s: %w", path, err)
+		return fmt.Errorf("command %q not found: %w", command, err)
 	}
 
 	st, err := store.NewJSONStore(cfg.StateFile)
@@ -53,8 +47,19 @@ func runShow(cmd *cobra.Command, args []string) error {
 
 	states := st.GetPageStates(page.Name)
 
+	var seed int64
+	if flagRandom {
+		seed = shuffle.RandomSeed()
+		shuffle.SaveSeed(cfg.CacheDir, command, seed)
+	} else if saved, err := shuffle.LoadSeed(cfg.CacheDir, command); err == nil {
+		seed = saved
+	} else {
+		seed = shuffle.DailySeed(command)
+		shuffle.SaveSeed(cfg.CacheDir, command, seed)
+	}
+
 	if flagInteractive {
-		m := tui.New(page, states, st, res)
+		m := tui.New(page, states, st, res, seed)
 		p := bubbletea.NewProgram(m, bubbletea.WithAltScreen())
 		if _, err := p.Run(); err != nil {
 			return fmt.Errorf("TUI error: %w", err)
@@ -62,7 +67,7 @@ func runShow(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	output := render.RenderText(page, states, flagShowAll, !cfg.ColorEnabled)
+	output := render.RenderText(page, states, flagShowAll, !cfg.ColorEnabled, seed)
 	fmt.Print(output)
 	return nil
 }

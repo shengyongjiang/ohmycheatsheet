@@ -3,11 +3,11 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/shengyongjiang/ocheetsheet/internal/config"
-	"github.com/shengyongjiang/ocheetsheet/internal/model"
-	"github.com/shengyongjiang/ocheetsheet/internal/parser"
-	"github.com/shengyongjiang/ocheetsheet/internal/resolver"
-	"github.com/shengyongjiang/ocheetsheet/internal/store"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/config"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/model"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/resolver"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/source"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -31,16 +31,14 @@ func runStats(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	if flagTldrPath != "" {
-		cfg.TldrCachePath = flagTldrPath
-	}
 
 	st, err := store.NewJSONStore(cfg.StateFile)
 	if err != nil {
 		return fmt.Errorf("load state: %w", err)
 	}
 
-	res := resolver.NewDefault(cfg.TldrCachePath)
+	src := source.NewCheatshSource(cfg.CacheDir)
+	res := resolver.New(src)
 
 	var pagesToShow []string
 	if len(args) > 0 {
@@ -50,7 +48,7 @@ func runStats(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(pagesToShow) == 0 {
-		fmt.Println("No tracked commands yet. Use `ocs <command> -i` to start learning.")
+		fmt.Println("No tracked commands yet. Use `omcs <command> -i` to start learning.")
 		return nil
 	}
 
@@ -60,11 +58,7 @@ func runStats(cmd *cobra.Command, args []string) error {
 	totalNotRemembered := 0
 
 	for _, pageKey := range pagesToShow {
-		path, err := res.Resolve(pageKey)
-		if err != nil {
-			continue
-		}
-		page, err := parser.ParseFile(path)
+		page, err := res.Resolve(pageKey)
 		if err != nil {
 			continue
 		}
