@@ -5,7 +5,7 @@ A terminal cheatsheet tool that tracks which commands you've memorized. Powered 
 ## Install
 
 ```bash
-go install github.com/shengyongjiang/ohmycheatsheet@latest
+go install github.com/shengyongjiang/ohmycheatsheet/cmd/omcs@latest
 ```
 
 Or build from source:
@@ -13,7 +13,7 @@ Or build from source:
 ```bash
 git clone https://github.com/shengyongjiang/ohmycheatsheet.git
 cd ohmycheatsheet
-go build -o omcs .
+go build -o omcs ./cmd/omcs/
 ```
 
 ## Usage

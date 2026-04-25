@@ -5,7 +5,7 @@
 ## 安装
 
 ```bash
-go install github.com/shengyongjiang/ohmycheatsheet@latest
+go install github.com/shengyongjiang/ohmycheatsheet/cmd/omcs@latest
 ```
 
 或从源码构建：
@@ -13,7 +13,7 @@ go install github.com/shengyongjiang/ohmycheatsheet@latest
 ```bash
 git clone https://github.com/shengyongjiang/ohmycheatsheet.git
 cd ohmycheatsheet
-go build -o omcs .
+go build -o omcs ./cmd/omcs/
 ```
 
 ## 使用方法
