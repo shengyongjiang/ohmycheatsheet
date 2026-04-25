@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shengyongjiang/ocheetsheet/internal/model"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/model"
 )
 
 func TestJsonStore_SetAndGet(t *testing.T) {

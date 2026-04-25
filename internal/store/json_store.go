@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shengyongjiang/ocheetsheet/internal/model"
+	"github.com/shengyongjiang/ohmycheatsheet/internal/model"
 )
 
 type stateFile struct {
@@ -104,33 +104,6 @@ func (s *JSONStore) ListTrackedPages() []string {
 	}
 	sort.Strings(pages)
 	return pages
-}
-
-func (s *JSONStore) GetDueEntries() []model.DueEntry {
-	var due []model.DueEntry
-	now := time.Now()
-	for key, es := range s.data.Entries {
-		page, idx, ok := parseEntryKey(key)
-		if !ok {
-			continue
-		}
-		if es.State == model.StateNeedsReview {
-			due = append(due, model.DueEntry{
-				PageKey: page,
-				Index:   idx,
-				State:   es,
-			})
-			continue
-		}
-		if es.NextReview != nil && !es.NextReview.After(now) {
-			due = append(due, model.DueEntry{
-				PageKey: page,
-				Index:   idx,
-				State:   es,
-			})
-		}
-	}
-	return due
 }
 
 func (s *JSONStore) ResetPage(pageKey string) error {
